@@ -5,9 +5,10 @@ use crate::devices::soundcore::{
         modules::reset_button_configuration::ResetButtonConfigurationPending,
         state::Update,
         structures::{
-            AgeRange, AutoPowerOff, CaseBatteryLevel, CommonEqualizerConfiguration, CustomHearId,
-            DualBattery, DualConnections, DualConnectionsDevice, DualFirmwareVersion, Gender, Ldac,
-            LimitHighVolume, LowBatteryPrompt, SerialNumber, TouchTone, TwsStatus,
+            AgeRange, AmbientSoundModeCycleTws, AutoPowerOff, CaseBatteryLevel,
+            CommonEqualizerConfiguration, CustomHearId, DualBattery, DualConnections,
+            DualConnectionsDevice, DualFirmwareVersion, Gender, Ldac, LimitHighVolume,
+            LowBatteryPrompt, SerialNumber, TouchTone, TwsStatus,
             button_configuration::ButtonStatusCollection,
         },
     },
@@ -26,6 +27,7 @@ pub struct D1202State {
     equalizer_configuration: CommonEqualizerConfiguration<2, 10>,
     hear_id: CustomHearId<2, 10>,
     button_configuration: ButtonStatusCollection<8>,
+    ambient_sound_mode_cycle: AmbientSoundModeCycleTws,
     sound_modes: d1202::structures::SoundModes,
     touch_tone: TouchTone,
     low_battery_prompt: LowBatteryPrompt,
@@ -53,6 +55,7 @@ impl D1202State {
             equalizer_configuration: packet.equalizer_configuration,
             hear_id: packet.hear_id,
             button_configuration: packet.button_configuration,
+            ambient_sound_mode_cycle: packet.ambient_sound_mode_cycle,
             sound_modes: packet.sound_modes,
             touch_tone: packet.touch_tone,
             low_battery_prompt: packet.low_battery_prompt,
@@ -82,6 +85,7 @@ impl Update<D1202StateUpdatePacket> for D1202State {
             equalizer_configuration,
             hear_id,
             button_configuration,
+            ambient_sound_mode_cycle,
             sound_modes,
             touch_tone,
             low_battery_prompt,
@@ -100,6 +104,7 @@ impl Update<D1202StateUpdatePacket> for D1202State {
         self.equalizer_configuration = equalizer_configuration;
         self.hear_id = hear_id;
         self.button_configuration = button_configuration;
+        self.ambient_sound_mode_cycle = ambient_sound_mode_cycle;
         self.sound_modes = sound_modes;
         self.touch_tone = touch_tone;
         self.low_battery_prompt = low_battery_prompt;

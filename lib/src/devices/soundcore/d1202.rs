@@ -55,6 +55,7 @@ soundcore_device!(
             .await;
 
         builder.button_configuration(&BUTTON_CONFIGURATION_SETTINGS);
+        builder.ambient_sound_mode_cycle_tws();
         builder.reset_button_configuration::<packets::inbound::D1202StateUpdatePacket>(
             RequestState.to_packet(),
         );

@@ -10,9 +10,10 @@ use crate::devices::soundcore::{
         macros::state_update_packet_module,
         packet::{self, Command, inbound::FromPacketBody, outbound::ToPacket, parsing::take_bool},
         structures::{
-            AutoPowerOff, CaseBatteryLevel, CommonEqualizerConfiguration, CustomHearId,
-            DualBattery, DualFirmwareVersion, Ldac, LimitHighVolume, LowBatteryPrompt,
-            SerialNumber, TouchTone, TwsStatus, button_configuration::ButtonStatusCollection,
+            AmbientSoundModeCycleTws, AutoPowerOff, CaseBatteryLevel, CommonEqualizerConfiguration,
+            CustomHearId, DualBattery, DualFirmwareVersion, Ldac, LimitHighVolume,
+            LowBatteryPrompt, SerialNumber, TouchTone, TwsStatus,
+            button_configuration::ButtonStatusCollection,
         },
     },
     d1202::{self, state::D1202State},
@@ -28,6 +29,7 @@ pub struct D1202StateUpdatePacket {
     pub equalizer_configuration: CommonEqualizerConfiguration<2, 10>,
     pub hear_id: CustomHearId<2, 10>,
     pub button_configuration: ButtonStatusCollection<8>,
+    pub ambient_sound_mode_cycle: AmbientSoundModeCycleTws,
     pub sound_modes: d1202::structures::SoundModes,
     pub touch_tone: TouchTone,
     pub low_battery_prompt: LowBatteryPrompt,
@@ -49,6 +51,7 @@ impl Default for D1202StateUpdatePacket {
             equalizer_configuration: Default::default(),
             hear_id: Default::default(),
             button_configuration: d1202::BUTTON_CONFIGURATION_SETTINGS.default_status_collection(),
+            ambient_sound_mode_cycle: Default::default(),
             sound_modes: Default::default(),
             touch_tone: Default::default(),
             low_battery_prompt: Default::default(),
@@ -84,7 +87,7 @@ impl FromPacketBody for D1202StateUpdatePacket {
                     ButtonStatusCollection::take(
                         d1202::BUTTON_CONFIGURATION_SETTINGS.parse_settings(),
                     ),
-                    take(1usize),
+                    AmbientSoundModeCycleTws::take,
                     d1202::structures::SoundModes::take,
                     take(1usize),
                     TouchTone::take,
@@ -107,7 +110,7 @@ impl FromPacketBody for D1202StateUpdatePacket {
                     hear_id,
                     _unknown2,
                     button_configuration,
-                    _unknown3,
+                    ambient_sound_mode_cycle,
                     sound_modes,
                     _unknown4,
                     touch_tone,
@@ -126,6 +129,7 @@ impl FromPacketBody for D1202StateUpdatePacket {
                     equalizer_configuration,
                     hear_id,
                     button_configuration,
+                    ambient_sound_mode_cycle,
                     sound_modes,
                     touch_tone,
                     low_battery_prompt,
@@ -165,7 +169,7 @@ impl ToPacket for D1202StateUpdatePacket {
                 self.button_configuration
                     .bytes(d1202::BUTTON_CONFIGURATION_SETTINGS.parse_settings()),
             )
-            .chain(std::iter::once(0))
+            .chain(self.ambient_sound_mode_cycle.bytes())
             .chain(self.sound_modes.bytes())
             .chain(std::iter::once(0))
             .chain(self.touch_tone.bytes())
