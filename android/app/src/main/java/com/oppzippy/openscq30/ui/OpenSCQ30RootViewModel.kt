@@ -30,13 +30,18 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
@@ -56,6 +61,11 @@ class OpenSCQ30RootViewModel @Inject constructor(
 
     var deviceSettingsManager = MutableStateFlow<DeviceSettingsManager?>(null)
         private set
+
+    private val _isViewingDeviceSettings = MutableStateFlow(false)
+    val isViewingDeviceSettings = _isViewingDeviceSettings.asStateFlow()
+
+    private var openSettingsWhenConnected = false
 
     companion object {
         const val TAG = "OpenSCQ30RootViewModel"
@@ -83,18 +93,38 @@ class OpenSCQ30RootViewModel @Inject constructor(
                         legacyEqualizerProfileDao = legacyEqualizerProfileDao,
                         toastHandler = toastHandler,
                     )
+                    if (openSettingsWhenConnected) {
+                        _isViewingDeviceSettings.value = true
+                        openSettingsWhenConnected = false
+                    }
                 } else {
                     deviceSettingsManager.value = null
+                    _isViewingDeviceSettings.value = false
                 }
             }
         }
     }
 
     fun selectDevice(macAddress: String) {
+        val currentStatus = connectionStatusFlow.value
+        if (currentStatus is ConnectionStatus.Connected &&
+            currentStatus.macAddress.equals(macAddress, ignoreCase = true)
+        ) {
+            _isViewingDeviceSettings.value = true
+            return
+        }
+        if (currentStatus is ConnectionStatus.Connected || currentStatus is ConnectionStatus.Connecting) {
+            stopDeviceService()
+        }
+        openSettingsWhenConnected = true
         val intent = intentFactory(application, DeviceService::class.java)
         intent.putExtra(DeviceService.INTENT_EXTRA_MAC_ADDRESS, macAddress)
         application.startForegroundService(intent)
         bindDeviceService()
+    }
+
+    fun closeDeviceSettings() {
+        _isViewingDeviceSettings.value = false
     }
 
     private fun bindDeviceService() {
@@ -115,6 +145,8 @@ class OpenSCQ30RootViewModel @Inject constructor(
     }
 
     fun stopDeviceService() {
+        openSettingsWhenConnected = false
+        _isViewingDeviceSettings.value = false
         application.stopService(intentFactory(application, DeviceService::class.java))
     }
 }
@@ -128,7 +160,7 @@ class DeviceSettingsManager(
     legacyEqualizerProfileDao: LegacyEqualizerProfileDao,
     private val toastHandler: ToastHandler,
 ) : AutoCloseable {
-    private val coroutineScope = CoroutineScope(Job(parent))
+    private val coroutineScope = CoroutineScope(Job(parent) + Dispatchers.Default)
     private val quickPresetHandler = session.quickPresetHandler()
     private val device = deviceManager.device
 
@@ -165,41 +197,47 @@ class DeviceSettingsManager(
         }
     }
 
-    val categoryIdsFlow: Flow<List<String>>
-        get() = deviceManager.watchForChangeNotification.map {
-            try {
-                device.categories()
-            } catch (ex: IllegalStateException) {
-                Log.w(TAG, "device was closed, can't update category ids", ex)
-                emptyList()
+    private fun readCategoryIds(): List<String> = try {
+        device.categories()
+    } catch (ex: IllegalStateException) {
+        Log.w(TAG, "device was closed, can't update category ids", ex)
+        emptyList()
+    }
+
+    private fun readAllSettings(): List<Pair<String, Setting>> = try {
+        device.categories()
+            .flatMap { device.settingsInCategory(it) }
+            .mapNotNull { settingId ->
+                device.setting(settingId)?.let { setting -> Pair(settingId, setting) }
             }
-        }
+    } catch (ex: IllegalStateException) {
+        Log.w(TAG, "device was closed, can't get all settings", ex)
+        emptyList()
+    }
+
+    val categoryIdsFlow: StateFlow<List<String>> = deviceManager.watchForChangeNotification
+        .map { readCategoryIds() }
+        .flowOn(Dispatchers.Default)
+        .stateIn(coroutineScope, SharingStarted.Eagerly, emptyList())
 
     fun getSettingsInCategoryFlow(categoryId: String): Flow<List<Pair<String, Setting>>> =
-        deviceManager.watchForChangeNotification.map {
-            try {
-                device.settingsInCategory(categoryId).mapNotNull { settingId ->
-                    device.setting(settingId)?.let { Pair(settingId, it) }
-                }
-            } catch (ex: IllegalStateException) {
-                Log.w(TAG, "device was closed, can't get settings in category $categoryId", ex)
-                emptyList()
-            }
-        }
-
-    val allSettingsFlow: Flow<List<Pair<String, Setting>>>
-        get() = deviceManager.watchForChangeNotification.map {
-            try {
-                device.categories()
-                    .flatMap { device.settingsInCategory(it) }
-                    .mapNotNull { settingId ->
-                        device.setting(settingId)?.let { setting -> Pair(settingId, setting) }
+        deviceManager.watchForChangeNotification
+            .map {
+                try {
+                    device.settingsInCategory(categoryId).mapNotNull { settingId ->
+                        device.setting(settingId)?.let { Pair(settingId, it) }
                     }
-            } catch (ex: IllegalStateException) {
-                Log.w(TAG, "device was closed, can't get all settings", ex)
-                emptyList()
+                } catch (ex: IllegalStateException) {
+                    Log.w(TAG, "device was closed, can't get settings in category $categoryId", ex)
+                    emptyList()
+                }
             }
-        }
+            .flowOn(Dispatchers.Default)
+
+    val allSettingsFlow: StateFlow<List<Pair<String, Setting>>> = deviceManager.watchForChangeNotification
+        .map { readAllSettings() }
+        .flowOn(Dispatchers.Default)
+        .stateIn(coroutineScope, SharingStarted.Eagerly, emptyList())
 
     val featuredSettingSlots = featuredSettingSlotDao.allSettingIds(device.model()).map { slots ->
         // Show a fixed number of slots

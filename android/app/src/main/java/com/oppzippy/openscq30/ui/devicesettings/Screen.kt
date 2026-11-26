@@ -14,6 +14,30 @@ sealed class Screen {
     data object ScreenSelection
 
     @Serializable
+    data object SoundEffects
+
+    @Serializable
+    data object CustomEqualizer
+
+    @Serializable
+    data object Controls
+
+    @Serializable
+    data object MoreSettings
+
+    @Serializable
+    data object DualConnections
+
+    @Serializable
+    data object SafeVolume
+
+    @Serializable
+    data object ClassicCategories
+
+    @Serializable
+    data object AppSettings
+
+    @Serializable
     data class SettingsCategory(val categoryId: String) : Screen() {
         fun screenInfo(): ScreenInfo = ScreenInfo(
             this,

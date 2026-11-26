@@ -8,15 +8,20 @@ import android.text.format.DateFormat
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,7 +43,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -46,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import com.oppzippy.openscq30.R
+import com.oppzippy.openscq30.lib.bindings.translateCategoryId
 import com.oppzippy.openscq30.lib.bindings.translateSettingId
 import com.oppzippy.openscq30.lib.wrapper.ModifiableSelectCommandInner
 import com.oppzippy.openscq30.lib.wrapper.MultiSelectWithRemoveCommandInner
@@ -56,6 +65,8 @@ import com.oppzippy.openscq30.lib.wrapper.toValue
 import com.oppzippy.openscq30.ui.devicesettings.composables.Equalizer
 import com.oppzippy.openscq30.ui.devicesettings.composables.ReadOnlyEqualizer
 import com.oppzippy.openscq30.ui.devicesettings.screens.categoryoverrides.categoryScreenOverrides
+import com.oppzippy.openscq30.ui.soundcore.components.SoundcoreTopBar
+import com.oppzippy.openscq30.ui.theme.SoundcoreColors
 import com.oppzippy.openscq30.ui.utils.Labeled
 import com.oppzippy.openscq30.ui.utils.LabeledSwitch
 import com.oppzippy.openscq30.ui.utils.ModifiableSelect
@@ -74,109 +85,150 @@ fun SettingCategoryScreen(
     categoryId: String,
     settings: List<Pair<String, Setting>>,
     setSettings: (List<Pair<String, Value>>) -> Unit,
+    onBack: (() -> Unit)? = null,
 ) {
-    val override = categoryScreenOverrides[categoryId]?.find { it.shouldOverride(deviceModel, settings) }
-    if (override != null) {
-        override.Screen(settings, setSettings)
-    } else {
-        FallbackSettingCategoryScreen(settings, setSettings)
+    val configuration = LocalConfiguration.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SoundcoreColors.Background),
+    ) {
+        if (onBack != null) {
+            val title = remember(categoryId, configuration) { translateCategoryId(categoryId) }
+            SoundcoreTopBar(
+                title = title,
+                onBack = onBack,
+            )
+        }
+        val override = categoryScreenOverrides[categoryId]?.find { it.shouldOverride(deviceModel, settings) }
+        if (override != null) {
+            override.Screen(settings, setSettings)
+        } else {
+            FallbackSettingCategoryScreen(settings, setSettings)
+        }
     }
 }
+
+private val SingleSettingCardShape = RoundedCornerShape(20.dp)
+private val TopSettingCardShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+private val BottomSettingCardShape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
 
 @Composable
 private fun FallbackSettingCategoryScreen(
     settings: List<Pair<String, Setting>>,
     setSettings: (List<Pair<String, Value>>) -> Unit,
 ) {
-    fun setSetting(settingId: String, value: Value) {
-        setSettings(listOf(Pair(settingId, value)))
+    val setSetting = remember(setSettings) {
+        { settingId: String, value: Value ->
+            setSettings(listOf(Pair(settingId, value)))
+        }
     }
-    Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+    val configuration = LocalConfiguration.current
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 20.dp),
     ) {
-        settings.forEach { (settingId, setting) ->
-            val name = translateSettingId(settingId)
-            when (setting) {
-                is Setting.ToggleSetting -> Toggle(
-                    name = name,
-                    isEnabled = setting.value,
-                    onChange = { setSetting(settingId, it.toValue()) },
-                )
+        itemsIndexed(
+            items = settings,
+            key = { _, (settingId, _) -> settingId },
+        ) { idx, (settingId, setting) ->
+            val shape = when {
+                settings.size == 1 -> SingleSettingCardShape
+                idx == 0 -> TopSettingCardShape
+                idx == settings.lastIndex -> BottomSettingCardShape
+                else -> RectangleShape
+            }
+            val topPadding = if (idx == 0) 16.dp else 4.dp
+            val bottomPadding = if (idx == settings.lastIndex) 16.dp else 4.dp
+            val name = remember(settingId, configuration) { translateSettingId(settingId) }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(SoundcoreColors.SurfaceCard)
+                    .padding(start = 16.dp, end = 16.dp, top = topPadding, bottom = bottomPadding),
+            ) {
+                when (setting) {
+                    is Setting.ToggleSetting -> Toggle(
+                        name = name,
+                        isEnabled = setting.value,
+                        onChange = { setSetting(settingId, it.toValue()) },
+                    )
 
-                is Setting.EqualizerSetting -> Equalizer(
-                    name = name,
-                    setting = setting,
-                    onChange = { setSetting(settingId, it.toValue()) },
-                )
+                    is Setting.EqualizerSetting -> Equalizer(
+                        name = name,
+                        setting = setting,
+                        onChange = { setSetting(settingId, it.toValue()) },
+                    )
 
-                is Setting.I32RangeSetting -> I32Range(
-                    name = name,
-                    range = setting.setting,
-                    value = setting.value,
-                    onChange = { setSetting(settingId, it.toValue()) },
-                )
+                    is Setting.I32RangeSetting -> I32Range(
+                        name = name,
+                        range = setting.setting,
+                        value = setting.value,
+                        onChange = { setSetting(settingId, it.toValue()) },
+                    )
 
-                is Setting.InformationSetting -> InformationSetting(name, setting.translatedValue)
+                    is Setting.InformationSetting -> InformationSetting(name, setting.translatedValue)
 
-                is Setting.SelectSetting -> StandardSelect(
-                    name = name,
-                    setting = setting,
-                    onChange = { setSetting(settingId, it.toValue()) },
-                )
+                    is Setting.SelectSetting -> StandardSelect(
+                        name = name,
+                        setting = setting,
+                        onChange = { setSetting(settingId, it.toValue()) },
+                    )
 
-                is Setting.OptionalSelectSetting -> OptionalSelect(
-                    name = name,
-                    setting = setting,
-                    onChange = { setSetting(settingId, it.toValue()) },
-                )
+                    is Setting.OptionalSelectSetting -> OptionalSelect(
+                        name = name,
+                        setting = setting,
+                        onChange = { setSetting(settingId, it.toValue()) },
+                    )
 
-                is Setting.PresetEqualizerProfileSelect -> OptionalSelect(
-                    name = name,
-                    setting = Setting.OptionalSelectSetting(setting = setting.select, value = setting.value),
-                    onChange = { setSetting(settingId, it.toValue()) },
-                )
+                    is Setting.PresetEqualizerProfileSelect -> OptionalSelect(
+                        name = name,
+                        setting = Setting.OptionalSelectSetting(setting = setting.select, value = setting.value),
+                        onChange = { setSetting(settingId, it.toValue()) },
+                    )
 
-                is Setting.ModifiableSelectSetting -> ModifiableSelect(
-                    name = name,
-                    setting = setting,
-                    onChange = { setSetting(settingId, it) },
-                )
+                    is Setting.ModifiableSelectSetting -> ModifiableSelect(
+                        name = name,
+                        setting = setting,
+                        onChange = { setSetting(settingId, it) },
+                    )
 
-                is Setting.MultiSelectSetting -> MultiSelect(
-                    name = name,
-                    setting = setting,
-                    onChange = { setSetting(settingId, it) },
-                )
+                    is Setting.MultiSelectSetting -> MultiSelect(
+                        name = name,
+                        setting = setting,
+                        onChange = { setSetting(settingId, it) },
+                    )
 
-                is Setting.HueColorPicker -> HueColorPicker(
-                    name = name,
-                    hue = setting.hue,
-                    onChange = { setSetting(settingId, it.toValue()) },
-                )
+                    is Setting.HueColorPicker -> HueColorPicker(
+                        name = name,
+                        hue = setting.hue,
+                        onChange = { setSetting(settingId, it.toValue()) },
+                    )
 
-                is Setting.MultiSelectWithRemoveSetting -> MultiSelectWithRemove(
-                    name = name,
-                    setting = setting,
-                    onChange = { setSetting(settingId, it) },
-                )
+                    is Setting.MultiSelectWithRemoveSetting -> MultiSelectWithRemove(
+                        name = name,
+                        setting = setting,
+                        onChange = { setSetting(settingId, it) },
+                    )
 
-                is Setting.ImportStringSetting -> ImportString(
-                    name = name,
-                    confirmationMessage = setting.confirmationMessage,
-                    onImport = { setSetting(settingId, it.toValue()) },
-                )
+                    is Setting.ImportStringSetting -> ImportString(
+                        name = name,
+                        confirmationMessage = setting.confirmationMessage,
+                        onImport = { setSetting(settingId, it.toValue()) },
+                    )
 
-                is Setting.Action -> Action(
-                    name = name,
-                    onExecute = { setSetting(settingId, true.toValue()) },
-                )
+                    is Setting.Action -> Action(
+                        name = name,
+                        onExecute = { setSetting(settingId, true.toValue()) },
+                    )
 
-                is Setting.TimeOfDay -> TimeOfDay(
-                    name = name,
-                    time = setting.getLocalTime(),
-                    onChange = { setSetting(settingId, (it.hour * 60 + it.minute).toValue()) },
-                )
+                    is Setting.TimeOfDay -> TimeOfDay(
+                        name = name,
+                        time = setting.getLocalTime(),
+                        onChange = { setSetting(settingId, (it.hour * 60 + it.minute).toValue()) },
+                    )
+                }
             }
         }
     }

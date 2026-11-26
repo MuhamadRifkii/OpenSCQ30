@@ -1,6 +1,7 @@
 package com.oppzippy.openscq30.ui.devicesettings.screens.categoryoverrides
 
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,11 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,8 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -212,13 +214,17 @@ private fun Preset(
     onSelected: (Int) -> Unit,
     lazyListState: LazyListState,
 ) {
+    val presetEntries = remember(options, localizedOptions, volumeAdjustments) {
+        options.zip(localizedOptions).zip(volumeAdjustments)
+    }
     LazyColumn(
         state = lazyListState,
         modifier = Modifier.padding(horizontal = 16.dp),
     ) {
         itemsIndexed(
-            options.zip(localizedOptions).zip(volumeAdjustments),
-        ) { index, (optionAndLocalizedOption, volumeAdjustments) ->
+            items = presetEntries,
+            key = { _, (optionAndLocalizedOption, _) -> optionAndLocalizedOption.first },
+        ) { index, (optionAndLocalizedOption, adjustments) ->
             val option = optionAndLocalizedOption.first
             val localizedOption = optionAndLocalizedOption.second
             // we want spacing before the first item, so use a spacer rather than LazyColumn's verticalArrangement
@@ -228,13 +234,15 @@ private fun Preset(
                 option = option,
                 localizedOption = localizedOption,
                 isSelected = index == selectedIndex,
-                volumeAdjustments = volumeAdjustments,
+                volumeAdjustments = adjustments,
                 equalizer = equalizer,
                 onSelected = onSelected,
             )
         }
     }
 }
+
+private val SelectedCheckBackingColor = Color.Black.copy(alpha = 0.28f)
 
 @Composable
 private fun PresetCard(
@@ -246,45 +254,50 @@ private fun PresetCard(
     isSelected: Boolean,
     onSelected: (Int) -> Unit,
 ) {
-    val gradient = presetGradients.getOrDefault(option, fallbackPresetGradient)
+    val gradient = remember(option) { presetGradients.getOrDefault(option, fallbackPresetGradient) }
+    val gradientColors = remember(gradient) { listOf(gradient.left, gradient.right) }
+    val gradientSlope = remember(gradient.angleInDegrees) {
+        // hacky angled gradient. only works when the angle is close to 90 degrees,
+        // since otherwise rightSideY will be extraordinarily high, leading to most of
+        // the gradient being off the top of the screen
+        val angle = Math.toRadians(90 - gradient.angleInDegrees * -1)
+        (sin(angle) / cos(angle)).toFloat()
+    }
+    val baseTextStyle = LocalTextStyle.current
+    val titleStyle = remember(baseTextStyle) {
+        baseTextStyle.copy(
+            color = Color.White,
+            shadow = Shadow(color = Color.Black, blurRadius = 5f),
+        )
+    }
+
     Card(
         Modifier
             .height(120.dp)
             .padding(4.dp)
             .clickable { onSelected(index) },
-        colors = CardDefaults.cardColors(containerColor = gradient?.left ?: Color.Unspecified),
+        colors = CardDefaults.cardColors(containerColor = gradient.left),
     ) {
         Box(
-            modifier = Modifier.drawBehind {
-                // hacky angled gradient. only works when the angle is close to 90 degrees,
-                // since otherwise rightSideY will be extraordinarily high, leading to most of
-                // the gradient being off the top of the screen
-
-                val angle = Math.toRadians(90 - gradient.angleInDegrees * -1)
-                val x = cos(angle)
-                val y = sin(angle)
-                val slope = y / x
-                val rightSideY = size.width * slope
-
-                drawRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(gradient.left, gradient.right),
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width, rightSideY.toFloat()),
-                    ),
-                    size = size,
+            modifier = Modifier.drawWithCache {
+                val rightSideY = size.width * gradientSlope
+                val brush = Brush.linearGradient(
+                    colors = gradientColors,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, rightSideY),
                 )
+                onDrawBehind {
+                    drawRect(brush = brush, size = size)
+                }
             },
         ) {
             if (isSelected) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
-                    // fake shadow since using Modifier.shadow with CircleShape doesn't show the shadow inside the
-                    // transparent checkmark
-                    Icon(
-                        modifier = Modifier.blur(2.dp),
-                        tint = Color.Black.copy(alpha = 0.5f),
-                        painter = painterResource(R.drawable.check_circle_24px),
-                        contentDescription = null,
+                    Box(
+                        modifier = Modifier
+                            .padding(2.dp)
+                            .size(20.dp)
+                            .background(SelectedCheckBackingColor, CircleShape),
                     )
                     Icon(
                         tint = Color.White,
@@ -317,10 +330,7 @@ private fun PresetCard(
             ) {
                 Text(
                     text = localizedOption,
-                    style = LocalTextStyle.current.copy(
-                        color = Color.White,
-                        shadow = Shadow(color = Color.Black, blurRadius = 5f),
-                    ),
+                    style = titleStyle,
                 )
             }
         }
