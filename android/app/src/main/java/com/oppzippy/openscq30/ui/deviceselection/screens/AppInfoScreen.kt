@@ -3,74 +3,57 @@ package com.oppzippy.openscq30.ui.deviceselection.screens
 import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.oppzippy.openscq30.R
+import com.oppzippy.openscq30.ui.soundcore.components.SoundcoreCard
+import com.oppzippy.openscq30.ui.soundcore.components.SoundcoreTopBar
 import com.oppzippy.openscq30.ui.theme.OpenSCQ30Theme
+import com.oppzippy.openscq30.ui.theme.SoundcoreColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppInfoScreen(onBackClick: () -> Unit) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(text = stringResource(id = R.string.info))
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back_24px),
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-            )
-        },
-        content = { innerPadding ->
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxWidth()
-                    .padding(20.dp, 20.dp),
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxHeight(),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SoundcoreColors.Background),
+    ) {
+        SoundcoreTopBar(
+            title = stringResource(id = R.string.info),
+            onBack = onBackClick,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            SoundcoreCard {
+                ProvideTextStyle(
+                    MaterialTheme.typography.bodyLarge.copy(color = SoundcoreColors.TextPrimary),
                 ) {
-                    ProvideTextStyle(MaterialTheme.typography.bodyLarge) {
-                        HtmlText(stringResource(R.string.source_code))
-                    }
+                    HtmlText(stringResource(R.string.source_code))
                 }
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -97,7 +80,7 @@ private fun HtmlText(text: String, modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 private fun PreviewAppInfoScreen() {
-    OpenSCQ30Theme {
+    OpenSCQ30Theme(darkTheme = true, dynamicColor = false) {
         AppInfoScreen(onBackClick = {})
     }
 }
