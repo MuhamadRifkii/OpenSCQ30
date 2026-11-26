@@ -10,6 +10,7 @@ import androidx.core.content.getSystemService
 import androidx.lifecycle.ViewModel
 import com.oppzippy.openscq30.features.autoconnect.AutoConnectService
 import com.oppzippy.openscq30.features.preferences.Preferences
+import com.oppzippy.openscq30.ui.theme.BackTransitionDirection
 import com.oppzippy.openscq30.ui.theme.ThemeType
 import com.oppzippy.openscq30.ui.utils.ToastHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,6 +30,10 @@ class SettingsViewModel @Inject constructor(
     val autoConnect = preferences.autoConnectFlow
     val theme = preferences.themeFlow
     val dynamicColorEnabled = preferences.dynamicColorFlow
+    val amoledBlack = preferences.amoledBlackFlow
+    val predictiveBackEnabled = preferences.predictiveBackEnabledFlow
+    val slideTransitionEnabled = preferences.slideTransitionEnabledFlow
+    val backTransitionDirection = preferences.backTransitionDirectionFlow
 
     fun setAutoConnect(value: Boolean) {
         preferences.autoConnect = value
@@ -46,6 +51,22 @@ class SettingsViewModel @Inject constructor(
 
     fun setDynamicColor(enabled: Boolean) {
         preferences.dynamicColor = enabled
+    }
+
+    fun setAmoledBlack(enabled: Boolean) {
+        preferences.amoledBlack = enabled
+    }
+
+    fun setPredictiveBackEnabled(enabled: Boolean) {
+        preferences.predictiveBackEnabled = enabled
+    }
+
+    fun setSlideTransitionEnabled(enabled: Boolean) {
+        preferences.slideTransitionEnabled = enabled
+    }
+
+    fun setBackTransitionDirection(direction: BackTransitionDirection) {
+        preferences.backTransitionDirection = direction
     }
 
     fun copyLogs() {
