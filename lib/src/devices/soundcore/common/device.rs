@@ -666,8 +666,11 @@ where
     where
         StateType: Has<LimitHighVolume>,
     {
-        self.module_collection
-            .add_limit_high_volume(self.packet_io_controller.clone());
+        self.module_collection.add_limit_high_volume(
+            self.packet_io_controller.clone(),
+            self.state_sender.subscribe(),
+            self.change_notify.clone(),
+        );
     }
 
     pub fn dual_connections(&mut self)

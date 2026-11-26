@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use macaddr::MacAddr6;
 use openscq30_lib_has::MaybeHas;
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use tokio::sync::watch;
 
 use crate::{
@@ -15,11 +18,18 @@ use crate::{
 
 pub struct DualConnectionsStateModifier {
     packet_io: Arc<PacketIOController>,
+    connect_new_device_pending: Arc<AtomicBool>,
 }
 
 impl DualConnectionsStateModifier {
-    pub fn new(packet_io: Arc<PacketIOController>) -> Self {
-        Self { packet_io }
+    pub fn new(
+        packet_io: Arc<PacketIOController>,
+        connect_new_device_pending: Arc<AtomicBool>,
+    ) -> Self {
+        Self {
+            packet_io,
+            connect_new_device_pending,
+        }
     }
 }
 
@@ -36,6 +46,11 @@ where
         set_enabled(&self.packet_io, state_sender, target_state).await?;
         forget_removed_devices(&self.packet_io, state_sender, target_state).await?;
         set_connected_devices(&self.packet_io, state_sender, target_state).await?;
+        if self.connect_new_device_pending.swap(false, Ordering::SeqCst) {
+            self.packet_io
+                .send_with_response(&packet::outbound::dual_connections_enter_pairing_mode())
+                .await?;
+        }
         Ok(())
     }
 }

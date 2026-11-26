@@ -52,7 +52,10 @@ impl QuickPresetsHandler {
                 !matches!(
                     setting_id,
                     SettingId::ImportCustomEqualizerProfiles
-                        | SettingId::ExportCustomEqualizerProfiles,
+                        | SettingId::ExportCustomEqualizerProfiles
+                        | SettingId::LimitHighVolumeDecibelMonitoring
+                        | SettingId::LimitHighVolumeCurrentDb
+                        | SettingId::DualConnectionsConnectNewDevice,
                 )
             })
             .filter_map(|setting_id| {

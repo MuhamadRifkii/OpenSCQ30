@@ -266,6 +266,12 @@ pub enum SettingId {
     #[translate("alarm-n-snooze-duration-minutes", number = 5)]
     Alarm5SnoozeDuration,
     HeyAnkaWakeWord,
+    #[translate("decibel-monitoring")]
+    LimitHighVolumeDecibelMonitoring,
+    #[translate("current-headphone-volume")]
+    LimitHighVolumeCurrentDb,
+    #[translate("connect-new-device")]
+    DualConnectionsConnectNewDevice,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -1,4 +1,11 @@
-use std::{borrow::Cow, str::FromStr};
+use std::{
+    borrow::Cow,
+    str::FromStr,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use async_trait::async_trait;
 use macaddr::MacAddr6;
@@ -16,7 +23,17 @@ use crate::{
 
 use super::DualConnectionsSetting;
 
-pub struct DualConnectionsSettingHandler;
+pub struct DualConnectionsSettingHandler {
+    connect_new_device_pending: Arc<AtomicBool>,
+}
+
+impl DualConnectionsSettingHandler {
+    pub fn new(connect_new_device_pending: Arc<AtomicBool>) -> Self {
+        Self {
+            connect_new_device_pending,
+        }
+    }
+}
 
 #[async_trait]
 impl<T> SettingHandler<T> for DualConnectionsSettingHandler
@@ -39,7 +56,12 @@ where
         value: Value,
     ) -> SettingHandlerResult<()> {
         let dual_connections = state.get_mut();
-        set_inner(dual_connections, setting_id, value)
+        set_inner(
+            dual_connections,
+            &self.connect_new_device_pending,
+            setting_id,
+            value,
+        )
     }
 }
 
@@ -73,12 +95,14 @@ fn get_inner(dual_connections: &DualConnections, setting_id: &SettingId) -> Opti
                 })
                 .collect(),
         },
+        DualConnectionsSetting::DualConnectionsConnectNewDevice => Setting::Action,
     })
 }
 
 #[inline(never)]
 fn set_inner(
     dual_connections: &mut DualConnections,
+    connect_new_device_pending: &AtomicBool,
     setting_id: &SettingId,
     value: Value,
 ) -> SettingHandlerResult<()> {
@@ -107,6 +131,9 @@ fn set_inner(
                 ));
             }
         },
+        DualConnectionsSetting::DualConnectionsConnectNewDevice => {
+            connect_new_device_pending.store(true, Ordering::SeqCst);
+        }
     }
     Ok(())
 }

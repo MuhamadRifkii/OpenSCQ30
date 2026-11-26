@@ -1,3 +1,5 @@
+use std::sync::{Arc, atomic::Ordering};
+
 use async_trait::async_trait;
 use openscq30_lib_has::Has;
 use strum::IntoEnumIterator;
@@ -5,14 +7,22 @@ use strum::IntoEnumIterator;
 use crate::{
     api::settings::{Setting, SettingId, Value},
     devices::soundcore::common::{
-        modules::limit_high_volume::LimitHighVolumeSetting,
-        settings_manager::{SettingHandler, SettingHandlerResult},
+        modules::limit_high_volume::{LimitHighVolumeLiveState, LimitHighVolumeSetting},
+        settings_manager::{SettingHandler, SettingHandlerError, SettingHandlerResult},
         structures::LimitHighVolume,
     },
     settings,
 };
 
-pub struct LimitHighVolumeSettingHandler;
+pub struct LimitHighVolumeSettingHandler {
+    live_state: Arc<LimitHighVolumeLiveState>,
+}
+
+impl LimitHighVolumeSettingHandler {
+    pub fn new(live_state: Arc<LimitHighVolumeLiveState>) -> Self {
+        Self { live_state }
+    }
+}
 
 #[async_trait]
 impl<T> SettingHandler<T> for LimitHighVolumeSettingHandler
@@ -61,6 +71,16 @@ impl LimitHighVolumeSettingHandler {
             LimitHighVolumeSetting::LimitHighVolumeRefreshRate => {
                 Setting::select_from_enum_all_variants(limit_high_volume.refresh_rate)
             }
+            LimitHighVolumeSetting::LimitHighVolumeDecibelMonitoring => Setting::Toggle {
+                value: self.live_state.monitoring_enabled.load(Ordering::SeqCst),
+            },
+            LimitHighVolumeSetting::LimitHighVolumeCurrentDb => {
+                let db = self.live_state.current_db.load(Ordering::SeqCst);
+                Setting::Information {
+                    value: db.to_string(),
+                    translated_value: format!("{db} dB"),
+                }
+            }
         })
     }
 
@@ -86,6 +106,12 @@ impl LimitHighVolumeSettingHandler {
             }
             LimitHighVolumeSetting::LimitHighVolumeRefreshRate => {
                 limit_high_volume.refresh_rate = value.try_as_enum_variant()?;
+            }
+            LimitHighVolumeSetting::LimitHighVolumeDecibelMonitoring => {
+                *self.live_state.pending_monitoring.lock().unwrap() = Some(value.try_as_bool()?);
+            }
+            LimitHighVolumeSetting::LimitHighVolumeCurrentDb => {
+                return Err(SettingHandlerError::ReadOnly);
             }
         }
         Ok(())

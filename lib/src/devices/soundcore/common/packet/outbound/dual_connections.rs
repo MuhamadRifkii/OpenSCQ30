@@ -21,3 +21,7 @@ pub fn dual_connections_connect(mac_address: MacAddr6) -> packet::Outbound {
 pub fn dual_connections_disconnect(mac_address: MacAddr6) -> packet::Outbound {
     packet::Outbound::new(Command([0x0b, 0x81]), mac_address.as_bytes().to_vec())
 }
+
+pub fn dual_connections_enter_pairing_mode() -> packet::Outbound {
+    packet::Outbound::new(Command([0x0b, 0x85]), Vec::new())
+}

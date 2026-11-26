@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, atomic::AtomicBool};
 
 use openscq30_lib_has::Has;
 use strum::{EnumIter, EnumString};
@@ -24,6 +24,7 @@ enum_subset! {
     enum DualConnectionsSetting {
         DualConnections,
         DualConnectionsDevices,
+        DualConnectionsConnectNewDevice,
     }
 }
 
@@ -32,17 +33,19 @@ where
     T: Has<DualConnections> + Clone + Send + Sync,
 {
     pub fn add_dual_connections(&mut self, packet_io: Arc<PacketIOController>) {
+        let connect_new_device_pending = Arc::new(AtomicBool::new(false));
         self.packet_handlers.set_handler(
             packet_handler::DualConnectionsDevicePacketHandler::COMMAND,
             Box::new(packet_handler::DualConnectionsDevicePacketHandler),
         );
         self.setting_manager.add_handler(
             CategoryId::DualConnections,
-            setting_handler::DualConnectionsSettingHandler,
+            setting_handler::DualConnectionsSettingHandler::new(connect_new_device_pending.clone()),
         );
         self.state_modifiers
             .push(Box::new(state_modifier::DualConnectionsStateModifier::new(
                 packet_io,
+                connect_new_device_pending,
             )));
     }
 }

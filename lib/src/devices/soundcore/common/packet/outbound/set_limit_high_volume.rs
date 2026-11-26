@@ -21,3 +21,11 @@ pub fn set_limit_high_volume_refresh_rate(
 ) -> packet::Outbound {
     packet::Outbound::new(Command([0x20, 0x81]), vec![refresh_rate as u8])
 }
+
+pub fn set_limit_high_volume_decibel_monitoring(enabled: bool) -> packet::Outbound {
+    packet::Outbound::new(Command([0x20, 0x86]), vec![enabled.into()])
+}
+
+pub fn request_limit_high_volume_current_db() -> packet::Outbound {
+    packet::Outbound::new(Command([0x20, 0x03]), Vec::new())
+}

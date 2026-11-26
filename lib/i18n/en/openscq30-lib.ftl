@@ -331,3 +331,7 @@ alarm-n-snooze-duration-minutes = Alarm { $number } Snooze Duration (minutes)
 both-earbuds-must-be-connected = Both earbuds must be connected.
 
 hey-anka-wake-word = "Hey Anka" Wake Word
+
+decibel-monitoring = Decibel Monitoring
+current-headphone-volume = Current Headphone Volume
+connect-new-device = Connect New Device
