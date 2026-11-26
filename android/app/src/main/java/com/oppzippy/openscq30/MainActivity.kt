@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        requestHighestRefreshRate()
 
         lifecycleScope.launch {
             // Update status bar color when we change the theme via in app settings
@@ -59,16 +60,36 @@ class MainActivity : AppCompatActivity() {
                         detectDarkMode,
                     ),
                     navigationBarStyle = SystemBarStyle.auto(
-                        // from the default value for enableEdgeToEdge
-                        Color.argb(0xe6, 0xFF, 0xFF, 0xFF),
-                        Color.argb(0x80, 0x1b, 0x1b, 0x1b),
+                        Color.TRANSPARENT,
+                        Color.TRANSPARENT,
                         detectDarkMode,
                     ),
                 )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    window.isNavigationBarContrastEnforced = false
+                }
             }
         }
         setContent {
             OpenSCQ30Root()
+        }
+    }
+
+    private fun requestHighestRefreshRate() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val currentDisplay = display ?: return
+        val currentMode = currentDisplay.mode ?: return
+        val bestMode = currentDisplay.supportedModes
+            .filter {
+                it.physicalWidth == currentMode.physicalWidth &&
+                    it.physicalHeight == currentMode.physicalHeight
+            }
+            .maxByOrNull { it.refreshRate }
+            ?: return
+        if (window.attributes.preferredDisplayModeId != bestMode.modeId) {
+            window.attributes = window.attributes.apply {
+                preferredDisplayModeId = bestMode.modeId
+            }
         }
     }
 
