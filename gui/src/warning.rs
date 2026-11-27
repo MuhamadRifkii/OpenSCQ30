@@ -11,7 +11,7 @@ use cosmic::{
         core::{Border, Shadow},
     },
     theme,
-    widget::{self, icon},
+    widget::{self},
 };
 
 #[must_use]
@@ -41,9 +41,10 @@ impl<'a, Message: 'static + Clone> Warning<'a, Message> {
             .class(theme::Container::custom(warning_container))
             .width(Length::Fill);
 
-        let close_button = icon::from_name("window-close-symbolic")
-            .size(16)
-            .apply(widget::button::icon)
+        let close_button = crate::icons::tinted_secondary(crate::icons::close(), 16)
+            .apply(widget::button::custom)
+            .class(crate::theme::transparent_row_button_style(12.0))
+            .padding(6)
             .on_press_maybe(self.on_close);
 
         widget::row::with_capacity(2)

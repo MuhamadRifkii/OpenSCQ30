@@ -27,6 +27,10 @@ use crate::{
     app::DebugOpenSCQ30Device,
     equalizer_line, fl, handle_soft_error,
     openscq30_v1_migration::{self, LegacyEqualizerProfile},
+    soundcore::{
+        SoundcoreMessage, SoundcoreRoute, SoundcoreUiState,
+        helpers::{self, BatterySummary},
+    },
     throttle,
     utils::coalesce_result,
 };
@@ -35,6 +39,7 @@ use crate::{
 pub enum Message {
     QuickPresets(quick_presets::Message),
     Throttle(throttle::Message),
+    Soundcore(SoundcoreMessage),
     SetSetting(SettingId, Value),
     SetEqualizerBand(SettingId, u8, i16),
     RefreshSettings,
@@ -82,25 +87,27 @@ pub enum Action {
 
 pub struct DeviceSettingsModel {
     device: DebugOpenSCQ30Device,
+    device_name: String,
     nav_model: nav_bar::Model,
     settings_order: Vec<SettingId>,
-    settings: HashMap<SettingId, SettingUiState>,
+    pub(crate) settings: HashMap<SettingId, SettingUiState>,
     dialog: Option<Dialog>,
     legacy_equalizer_migration: Option<legacy_migration::LegacyMigrationModel>,
     quick_presets_model: quick_presets::QuickPresetsModel,
     throttle: throttle::Throttle,
     key_binds: HashMap<KeyBind, KeyBindAction>,
+    soundcore: SoundcoreUiState,
 }
 
 #[derive(Debug)]
-struct SettingUiState {
-    setting_id: SettingId,
-    translated_name: String,
-    variant_state: SettingVariantUiState,
+pub(crate) struct SettingUiState {
+    pub(crate) setting_id: SettingId,
+    pub(crate) translated_name: String,
+    pub(crate) variant_state: SettingVariantUiState,
 }
 
 #[derive(Debug)]
-enum SettingVariantUiState {
+pub(crate) enum SettingVariantUiState {
     Toggle {
         value: bool,
     },
@@ -134,7 +141,9 @@ enum SettingVariantUiState {
         value: Vec<i16>,
     },
     PresetEqualizerProfileSelect {
+        equalizer: settings::Equalizer,
         select: settings::Select,
+        presets: Vec<Vec<i16>>,
         value: Option<Cow<'static, str>>,
     },
     Information {
@@ -180,11 +189,16 @@ impl From<Setting> for SettingVariantUiState {
                 value,
             },
             Setting::PresetEqualizerProfileSelect {
-                equalizer: _,
+                equalizer,
                 select,
-                presets: _,
+                presets,
                 value,
-            } => Self::PresetEqualizerProfileSelect { select, value },
+            } => Self::PresetEqualizerProfileSelect {
+                equalizer,
+                select,
+                presets,
+                value,
+            },
             Setting::Information {
                 value: _,
                 translated_value,
@@ -388,9 +402,11 @@ impl DeviceSettingsModel {
             .instrument(tracing::info_span!("watch_for_disconnect_task")),
         );
 
+        let device_name = device.model().translate();
         let mut model = Self {
             throttle: throttle::Throttle::new(device.0.clone()),
             device,
+            device_name,
             nav_model,
             settings_order: Vec::new(),
             settings: HashMap::new(),
@@ -398,6 +414,7 @@ impl DeviceSettingsModel {
             legacy_equalizer_migration: None,
             quick_presets_model,
             key_binds: key_binds(),
+            soundcore: SoundcoreUiState::default(),
         };
         let task = Task::batch([
             model.refresh(),
@@ -436,40 +453,88 @@ impl DeviceSettingsModel {
         Task::batch([self.refresh_settings()])
     }
 
+    pub fn is_soundcore_ui_active(&self) -> bool {
+        helpers::supports_soundcore_ui(&self.settings)
+    }
+
+    pub fn is_safe_volume_active(&self) -> bool {
+        self.is_soundcore_ui_active() && self.soundcore.is_safe_volume_active()
+    }
+
+    pub fn can_navigate_back(&self) -> bool {
+        self.is_soundcore_ui_active() && self.soundcore.can_navigate_back()
+    }
+
+    pub fn navigate_back(&mut self) -> Action {
+        let cleanup = self.soundcore.navigate_back();
+        self.apply_setting_values(cleanup)
+    }
+
+    pub fn battery_summary(&self) -> BatterySummary {
+        helpers::extract_battery_summary(&self.settings)
+    }
+
+    pub fn device(&self) -> &DebugOpenSCQ30Device {
+        &self.device
+    }
+
+    pub fn stop_background_monitoring(&mut self) -> Task<Message> {
+        let mut cleanup = self.soundcore.on_disconnect_cleanup();
+        if cleanup.is_empty()
+            && helpers::get_toggle(
+                &self.settings,
+                SettingId::LimitHighVolumeDecibelMonitoring,
+            ) == Some(true)
+        {
+            cleanup.push((
+                SettingId::LimitHighVolumeDecibelMonitoring,
+                Value::Bool(false),
+            ));
+        }
+        if cleanup.is_empty() {
+            return Task::none();
+        }
+        let device = self.device.clone();
+        Task::future(async move {
+            let _ = device.set_setting_values(cleanup).await;
+            Message::None
+        })
+    }
+
     fn refresh_settings(&mut self) -> Task<Message> {
-        if let Some(category_id) = self.nav_model.active_data::<CategoryId>() {
-            let mut settings_order = self.device.settings_in_category(category_id);
-            let settings = settings_order
-                .iter()
-                .copied()
-                .flat_map(|setting_id| {
-                    self.throttle
-                        .setting(&setting_id)
-                        .map(|value| (setting_id, value))
-                })
-                .collect::<HashMap<SettingId, Setting>>();
+        let active_category = self.nav_model.active_data::<CategoryId>().copied();
+        let mut settings = HashMap::new();
+        for category_id in self.device.categories() {
+            let mut category_order = self.device.settings_in_category(&category_id);
+            let mut category_settings = HashMap::new();
+            for setting_id in category_order.iter().copied() {
+                if let Some(value) = self.throttle.setting(&setting_id) {
+                    category_settings.insert(setting_id, value);
+                }
+            }
+            if Some(category_id) == active_category {
+                category_order.retain(|id| category_settings.contains_key(id));
+                self.settings_order = category_order;
+            }
+            settings.extend(category_settings);
+        }
 
-            // remove setting ids that are currently unavailable from the ordering
-            settings_order.retain(|setting_id| settings.contains_key(setting_id));
-            self.settings_order = settings_order;
+        // remove setting ui state for settings that no longer exist
+        self.settings
+            .retain(|setting_id, _| settings.contains_key(setting_id));
 
-            // remove setting ui state for settings that no longer exist
-            self.settings
-                .retain(|setting_id, _| settings.contains_key(setting_id));
-
-            // update existing setting ui state, or add new state for newly introduced settings
-            for (setting_id, setting) in settings.into_iter() {
-                match self.settings.entry(setting_id) {
-                    hash_map::Entry::Occupied(mut occupied_entry) => {
-                        occupied_entry.get_mut().variant_state.update(setting);
-                    }
-                    hash_map::Entry::Vacant(vacant_entry) => {
-                        vacant_entry.insert(SettingUiState {
-                            setting_id,
-                            translated_name: setting_id.translate(),
-                            variant_state: setting.into(),
-                        });
-                    }
+        // update existing setting ui state, or add new state for newly introduced settings
+        for (setting_id, setting) in settings {
+            match self.settings.entry(setting_id) {
+                hash_map::Entry::Occupied(mut occupied_entry) => {
+                    occupied_entry.get_mut().variant_state.update(setting);
+                }
+                hash_map::Entry::Vacant(vacant_entry) => {
+                    vacant_entry.insert(SettingUiState {
+                        setting_id,
+                        translated_name: setting_id.translate(),
+                        variant_state: setting.into(),
+                    });
                 }
             }
         }
@@ -477,13 +542,21 @@ impl DeviceSettingsModel {
     }
 
     pub fn nav_model(&self) -> Option<&nav_bar::Model> {
-        Some(&self.nav_model)
+        if self.is_soundcore_ui_active() && !self.soundcore.is_classic_view() {
+            None
+        } else {
+            Some(&self.nav_model)
+        }
     }
 
     pub fn dialog(&self) -> Option<Element<'_, Message>> {
-        self.quick_presets_model
+        self.soundcore
             .dialog()
-            .map(|dialog| dialog.map(Into::into))
+            .or_else(|| {
+                self.quick_presets_model
+                    .dialog()
+                    .map(|dialog| dialog.map(Into::into))
+            })
             .or_else(|| {
                 self.dialog.as_ref().map(|dialog| match dialog {
                     Dialog::ModifiableSelectAdd(setting_id, name) => widget::dialog()
@@ -550,21 +623,51 @@ impl DeviceSettingsModel {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        if let Some(custom_category) = self.nav_model.active_data::<CustomCategory>() {
-            match custom_category {
-                CustomCategory::QuickPresets => self.quick_presets_model.view().map(Into::into),
-                CustomCategory::LegacyEqualizerMigration => {
-                    if let Some(model) = &self.legacy_equalizer_migration {
-                        model.view().map(Message::LegacyMigration)
-                    } else {
-                        widget::text("unreachable").into()
+        if self.is_soundcore_ui_active() && !self.soundcore.is_classic_view() {
+            if self.soundcore.route == SoundcoreRoute::QuickPresets {
+                return crate::theme::centered_page(
+                    widget::column![
+                        crate::soundcore::sound_effects::subpage_header(fl!("quick-presets")),
+                        self.quick_presets_model.view().map(Into::into),
+                    ]
+                    .spacing(12)
+                    .padding([8, 0]),
+                );
+            }
+            return self
+                .soundcore
+                .view(&self.device_name, &self.settings, true);
+        }
+
+        let content: Element<'_, Message> =
+            if let Some(custom_category) = self.nav_model.active_data::<CustomCategory>() {
+                match custom_category {
+                    CustomCategory::QuickPresets => self.quick_presets_model.view().map(Into::into),
+                    CustomCategory::LegacyEqualizerMigration => {
+                        if let Some(model) = &self.legacy_equalizer_migration {
+                            model.view().map(Message::LegacyMigration)
+                        } else {
+                            widget::text("unreachable").into()
+                        }
                     }
                 }
-            }
-        } else if let Some(category_id) = self.nav_model.active_data::<CategoryId>() {
-            self.view_settings(category_id)
+            } else if let Some(category_id) = self.nav_model.active_data::<CategoryId>() {
+                self.view_settings(category_id)
+            } else {
+                widget::space().into()
+            };
+
+        if self.is_soundcore_ui_active() && self.soundcore.is_classic_view() {
+            widget::column![
+                widget::container(
+                    crate::soundcore::sound_effects::subpage_header(fl!("all-settings-classic")),
+                )
+                .padding([8, 12]),
+                content,
+            ]
+            .into()
         } else {
-            widget::space().into()
+            content
         }
     }
 
@@ -764,6 +867,10 @@ impl DeviceSettingsModel {
                 quick_presets::Action::Task(task) => Action::Task(task.map(Into::into)),
                 quick_presets::Action::FocusTextInput(id) => Action::FocusTextInput(id),
             },
+            Message::Soundcore(inner) => {
+                let outcome = self.soundcore.update(inner, &self.settings);
+                self.apply_setting_values(outcome.settings_to_apply)
+            }
             Message::SetSetting(setting_id, value) => self.set_setting(setting_id, value),
             Message::SetTimeTwelveHour(setting_id, new_hour_text) => {
                 let maybe_value = if new_hour_text.len() <= 2
@@ -1037,7 +1144,33 @@ impl DeviceSettingsModel {
                 throttle::Action::Error(err) => Action::Task(Task::done(handle_soft_error!()(err))),
                 throttle::Action::None => Action::None,
             },
-            Message::Disconnect => Action::Disconnect,
+            Message::Disconnect => {
+                let _ = self.soundcore.on_disconnect_cleanup();
+                Action::Disconnect
+            }
+        }
+    }
+
+    fn apply_setting_values(&mut self, mut pairs: Vec<(SettingId, Value)>) -> Action {
+        match pairs.len() {
+            0 => Action::None,
+            1 => {
+                let (setting_id, value) = pairs.remove(0);
+                self.set_setting(setting_id, value)
+            }
+            _ => {
+                let device = self.device.clone();
+                Action::Task(
+                    Task::future(async move {
+                        device
+                            .set_setting_values(pairs)
+                            .await
+                            .map_err(handle_soft_error!())?;
+                        Ok(Message::RefreshSettings)
+                    })
+                    .map(coalesce_result),
+                )
+            }
         }
     }
 
@@ -1096,6 +1229,7 @@ impl DeviceSettingsModel {
         match action {
             KeyBindAction::CloseDialog => {
                 self.dialog = None;
+                self.soundcore.dialog = None;
                 self.quick_presets_model.close_dialog();
                 Action::None
             }

@@ -13,6 +13,8 @@ pub mod equalizer_line;
 mod i18n;
 pub mod icons;
 mod openscq30_v1_migration;
+mod soundcore;
+pub mod theme;
 mod throttle;
 mod utils;
 mod warning;
@@ -64,8 +66,8 @@ fn main() -> anyhow::Result<()> {
 
     let cosmic_settings = match config.get().theme {
         config::AppTheme::System => cosmic::app::Settings::default(),
-        config::AppTheme::Light => cosmic::app::Settings::default().theme(cosmic::Theme::light()),
-        config::AppTheme::Dark => cosmic::app::Settings::default().theme(cosmic::Theme::dark()),
+        custom => cosmic::app::Settings::default()
+            .theme(theme::resolve_cosmic_theme(custom, None)),
     };
     cosmic::app::run::<app::AppModel>(cosmic_settings, app::AppFlags { config, config_dir })?;
 

@@ -96,11 +96,16 @@ where
                 .width(Length::Fill),
             )
             .push_maybe(maybe_deselect_message.map(|deselect_message| {
-                widget::button::icon(widget::icon::from_name("list-remove-symbolic"))
+                widget::button::custom(crate::icons::tinted_secondary(crate::icons::remove(), 16))
+                    .class(crate::theme::transparent_row_button_style(10.0))
+                    .padding(6)
                     .on_press(deselect_message)
             }))
             .push(
-                widget::button::icon(widget::icon::from_name("list-add-symbolic")).on_press(on_add),
+                widget::button::custom(crate::icons::tinted_primary(crate::icons::add(), 16))
+                    .class(crate::theme::transparent_row_button_style(10.0))
+                    .padding(6)
+                    .on_press(on_add),
             ),
     )
 }
@@ -178,10 +183,13 @@ where
                         .spacing(8)
                         .align_y(alignment::Vertical::Center)
                         .push_maybe((!is_checked).then(|| {
-                            widget::button::icon(widget::icon::from_name("list-remove-symbolic"))
-                                .class(cosmic::theme::Button::Destructive)
-                                .label(fl!("remove"))
-                                .on_press(remove_message)
+                            widget::button::custom(crate::icons::tinted_primary(
+                                crate::icons::remove(),
+                                16,
+                            ))
+                            .class(crate::theme::pill_button_style(false, false))
+                            .padding(6)
+                            .on_press(remove_message)
                         }))
                         .push(
                             widget::toggler(is_checked)

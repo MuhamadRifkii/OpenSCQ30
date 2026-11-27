@@ -153,7 +153,7 @@ impl AddDeviceModel {
                                 Message::SelectModel(ui_model.device_model, enabled)
                             });
                         let refresh = widget::button::standard(fl!("refresh"))
-                            .leading_icon(widget::icon::from_name("view-refresh-symbolic"))
+                            .leading_icon(crate::icons::refresh())
                             .on_press(Message::SelectModel(
                                 ui_model.device_model,
                                 ui_model.is_demo_mode,
