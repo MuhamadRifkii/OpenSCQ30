@@ -449,7 +449,7 @@ impl<M> widget::canvas::Program<M, Theme, cosmic::Renderer> for RadioIndicatorCa
 }
 
 pub fn nav_row<'a, M: Clone + 'a>(
-    title: impl Into<Cow<'a, str>>,
+    title: impl Into<Cow<'a, str>> + 'a,
     subtitle: Option<Cow<'a, str>>,
     value_text: Option<Cow<'a, str>>,
     leading_icon: Option<Element<'a, M>>,
@@ -499,7 +499,10 @@ pub fn nav_row<'a, M: Clone + 'a>(
         .into()
 }
 
-pub fn secondary_text<'a>(content: impl Into<Cow<'a, str>>, size: f32) -> widget::Text<'a, Theme, cosmic::Renderer> {
+pub fn secondary_text<'a>(
+    content: impl Into<Cow<'a, str>> + 'a,
+    size: f32,
+) -> widget::Text<'a, Theme, cosmic::Renderer> {
     widget::text::text(content)
         .size(size)
         .class(theme::Text::Custom(|theme| {
@@ -511,7 +514,10 @@ pub fn secondary_text<'a>(content: impl Into<Cow<'a, str>>, size: f32) -> widget
         }))
 }
 
-pub fn accent_text<'a>(content: impl Into<Cow<'a, str>>, size: f32) -> widget::Text<'a, Theme, cosmic::Renderer> {
+pub fn accent_text<'a>(
+    content: impl Into<Cow<'a, str>> + 'a,
+    size: f32,
+) -> widget::Text<'a, Theme, cosmic::Renderer> {
     widget::text::text(content)
         .size(size)
         .font(cosmic::font::semibold())

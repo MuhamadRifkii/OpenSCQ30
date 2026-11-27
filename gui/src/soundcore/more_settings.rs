@@ -18,8 +18,8 @@ use crate::{
         sound_effects::subpage_header,
     },
     theme::{
-        SOUNDCORE_CORAL, SoundcorePalette, centered_page, nav_row, secondary_text,
-        soundcore_divider, soundcore_grouped_card,
+        SOUNDCORE_CORAL, centered_page, nav_row, secondary_text, soundcore_divider,
+        soundcore_grouped_card,
     },
 };
 
@@ -214,20 +214,23 @@ pub fn view<'a>(
                 .width(Length::Fill),
         )
         .class(cosmic::widget::button::ButtonClass::Custom {
-            active: Box::new(|_focused, theme| {
-                let p = SoundcorePalette::from_theme(theme);
-                cosmic::widget::button::Style {
-                    shadow_offset: cosmic::iced::Vector::new(0.0, 0.0),
-                    background: Some(Background::Color(Color { a: 0.14, ..SOUNDCORE_CORAL })),
-                    overlay: None,
-                    border_radius: 18.0.into(),
-                    border_width: 1.0,
-                    border_color: Color { a: 0.32, ..SOUNDCORE_CORAL },
-                    outline_width: 0.0,
-                    outline_color: Color::TRANSPARENT,
-                    icon_color: Some(SOUNDCORE_CORAL),
-                    text_color: Some(SOUNDCORE_CORAL),
-                }
+            active: Box::new(|_focused, _theme| cosmic::widget::button::Style {
+                shadow_offset: cosmic::iced::Vector::new(0.0, 0.0),
+                background: Some(Background::Color(Color {
+                    a: 0.14,
+                    ..SOUNDCORE_CORAL
+                })),
+                overlay: None,
+                border_radius: 18.0.into(),
+                border_width: 1.0,
+                border_color: Color {
+                    a: 0.32,
+                    ..SOUNDCORE_CORAL
+                },
+                outline_width: 0.0,
+                outline_color: Color::TRANSPARENT,
+                icon_color: Some(SOUNDCORE_CORAL),
+                text_color: Some(SOUNDCORE_CORAL),
             }),
             disabled: Box::new(|_theme| cosmic::widget::button::Style {
                 shadow_offset: cosmic::iced::Vector::new(0.0, 0.0),
