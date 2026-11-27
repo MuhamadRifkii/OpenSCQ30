@@ -1,4 +1,4 @@
-mod controls;
+pub(crate) mod controls;
 mod legacy_migration;
 mod quick_presets;
 

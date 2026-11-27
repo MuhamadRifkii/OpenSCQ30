@@ -82,7 +82,7 @@ impl DeviceSelectionModel {
                     artwork::earbuds_artwork(120.0),
                     widget::text::title4(fl!("no-paired-devices"))
                         .font(cosmic::font::semibold()),
-                    secondary_text(fl!("add-device-prompt"), 13),
+                    secondary_text(fl!("add-device-prompt"), 13.0),
                 ]
                 .spacing(8)
                 .align_x(Alignment::Center)
@@ -214,18 +214,19 @@ fn device_card<'a>(
                     let p = SoundcorePalette::from_theme(theme);
                     iced::widget::text::Style {
                         color: Some(p.text_secondary),
+                        ..Default::default()
                     }
                 },
             )),
-            secondary_text(device.mac_address.to_string(), 11).width(Length::Fill),
+            secondary_text(device.mac_address.to_string(), 11.0).width(Length::Fill),
         ]
         .spacing(6)
         .align_y(Alignment::Center)
         .into()
     } else {
         widget::row![
-            secondary_text(fl!("not-connected"), 13),
-            secondary_text(device.mac_address.to_string(), 11).width(Length::Fill),
+            secondary_text(fl!("not-connected"), 13.0),
+            secondary_text(device.mac_address.to_string(), 11.0).width(Length::Fill),
         ]
         .spacing(8)
         .align_y(Alignment::Center)

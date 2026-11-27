@@ -214,7 +214,7 @@ fn default_presets_card<'a>(
         items.push(GridItem::MoreToggle);
     }
 
-    let mut grid = widget::column::new().spacing(10);
+    let mut grid = widget::column::with_capacity(items.len().div_ceil(2)).spacing(10);
     for chunk in items.chunks(2) {
         let mut row = widget::row::with_capacity(2).spacing(10);
         for item in chunk {
@@ -294,7 +294,7 @@ fn custom_eq_card<'a>(settings: &'a HashMap<SettingId, SettingUiState>) -> Eleme
                 ]
                 .spacing(4)
                 .align_y(Alignment::Center),
-                secondary_text(subtitle, 12),
+                secondary_text(subtitle, 12.0),
             ]
             .spacing(2)
             .width(Length::Fill),

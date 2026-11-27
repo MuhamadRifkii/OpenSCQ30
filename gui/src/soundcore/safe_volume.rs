@@ -75,7 +75,7 @@ pub fn view<'a>(
 
     if show_info {
         col = col.push(
-            widget::container(secondary_text(fl!("safe-volume-info"), 12))
+            widget::container(secondary_text(fl!("safe-volume-info"), 12.0))
                 .padding([12, 14])
                 .width(Length::Fill)
                 .class(theme::Container::custom(|theme| {
@@ -202,7 +202,7 @@ pub fn view<'a>(
             widget::row![
                 widget::column![
                     widget::text::body(fl!("limit-high-volume")).size(15),
-                    secondary_text(fl!("limit-high-volume-description"), 12),
+                    secondary_text(fl!("limit-high-volume-description"), 12.0),
                 ]
                 .spacing(4)
                 .width(Length::Fill),
@@ -216,7 +216,7 @@ pub fn view<'a>(
             .spacing(12)
             .align_y(Alignment::Center),
             widget::row![
-                crate::theme::accent_text(format!("{current_limit}dB"), 16)
+                crate::theme::accent_text(format!("{current_limit}dB"), 16.0)
                     .width(Length::Fill),
             ],
             limit_pills,

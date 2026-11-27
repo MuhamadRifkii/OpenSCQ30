@@ -219,7 +219,7 @@ fn ambient_sound_card<'a>(
         let label_col = widget::column::with_capacity(2)
             .push(widget::text::body(fl!("wind-noise-reduction")).size(14))
             .push_maybe(wind_detected.then(|| {
-                crate::theme::accent_text(fl!("wind-detected"), 12)
+                crate::theme::accent_text(fl!("wind-detected"), 12.0)
             }))
             .spacing(2)
             .width(Length::Fill);
@@ -326,7 +326,7 @@ fn noise_canceling_controls<'a>(
                         widget::text::body(fl!("adaptive-strength"))
                             .size(13)
                             .width(Length::Fill),
-                        crate::theme::accent_text(adaptive_strength, 13),
+                        crate::theme::accent_text(adaptive_strength, 13.0),
                     ]
                     .align_y(Alignment::Center),
                 );
@@ -361,7 +361,7 @@ fn noise_canceling_controls<'a>(
                 ));
             }
         } else if let Some(val) = localized_select_value(select, Some(mode)) {
-            col = col.push(secondary_text(val, 13));
+            col = col.push(secondary_text(val, 13.0));
         }
     } else if let Some((range, custom_level)) = get_i32_range(settings, SettingId::ManualNoiseCanceling) {
         has_any = true;
@@ -385,7 +385,7 @@ fn level_selector<'a>(
     let start = *range.range.start();
     let end = *range.range.end();
     let step = range.step.max(1);
-    let mut buttons = widget::row::new().spacing(8);
+    let mut buttons = widget::row::with_capacity(5).spacing(8);
     let mut v = start;
     while v <= end {
         let selected = v == current;
@@ -406,8 +406,8 @@ fn level_selector<'a>(
 
     widget::column![
         widget::row![
-            secondary_text(label, 12).width(Length::Fill),
-            crate::theme::accent_text(format!("{current}/{end}"), 12),
+            secondary_text(label, 12.0).width(Length::Fill),
+            crate::theme::accent_text(format!("{current}/{end}"), 12.0),
         ]
         .align_y(Alignment::Center),
         buttons,
@@ -457,7 +457,7 @@ fn quick_toggles_card<'a>(
             widget::row![
                 widget::column![
                     widget::text::body(fl!("touch-lock")).size(15),
-                    secondary_text(fl!("touch-lock-subtitle"), 12),
+                    secondary_text(fl!("touch-lock-subtitle"), 12.0),
                 ]
                 .spacing(2)
                 .width(Length::Fill),
@@ -477,7 +477,7 @@ fn quick_toggles_card<'a>(
             widget::row![
                 widget::column![
                     widget::text::body(fl!("gaming-mode")).size(15),
-                    secondary_text(fl!("gaming-mode-subtitle"), 12),
+                    secondary_text(fl!("gaming-mode-subtitle"), 12.0),
                 ]
                 .spacing(2)
                 .width(Length::Fill),

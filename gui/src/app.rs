@@ -11,7 +11,7 @@ use std::{
 use cosmic::{
     Application, ApplicationExt, Task,
     app::{Core, context_drawer::ContextDrawer},
-    iced::{Length, event, keyboard},
+    iced::{event, keyboard},
     widget::{self, menu::KeyBind, nav_bar},
 };
 use i18n_embed::unic_langid::LanguageIdentifier;
@@ -359,7 +359,7 @@ impl Application for AppModel {
             DialogPage::RemoveDevice(device) => widget::dialog()
                 .title(fl!("prompt-remove-device-title"))
                 .body(fl!("prompt-remove-device", name = device.model.translate()))
-                .icon(crate::icons::info())
+                .icon(widget::icon::icon(crate::icons::info()).size(24))
                 .primary_action(
                     widget::button::destructive(fl!("remove"))
                         .on_press(Message::RemovePairedDevice(device.mac_address)),

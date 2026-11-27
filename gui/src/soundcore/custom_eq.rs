@@ -14,6 +14,7 @@ use crate::{
         SoundcoreMessage,
         helpers::{
             get_equalizer, get_import_string, get_info, get_modifiable_select, get_preset_eq,
+            has_setting,
         },
         sound_effects::{eq_curve_canvas, subpage_header},
     },
@@ -35,7 +36,7 @@ pub fn view<'a>(settings: &'a HashMap<SettingId, SettingUiState>) -> Element<'a,
             widget::row![
                 widget::column![
                     widget::text::body(fl!("custom-eq-inactive")).size(14),
-                    secondary_text(fl!("custom-eq-inactive-hint"), 12),
+                    secondary_text(fl!("custom-eq-inactive-hint"), 12.0),
                 ]
                 .spacing(2)
                 .width(Length::Fill),
@@ -57,7 +58,7 @@ pub fn view<'a>(settings: &'a HashMap<SettingId, SettingUiState>) -> Element<'a,
             widget::container(
                 widget::row![
                     icons::tinted_accent(icons::check(), 16),
-                    crate::theme::accent_text(fl!("custom-eq-active"), 13),
+                    crate::theme::accent_text(fl!("custom-eq-active"), 13.0),
                 ]
                 .spacing(6)
                 .align_y(Alignment::Center),
@@ -131,7 +132,7 @@ pub fn view<'a>(settings: &'a HashMap<SettingId, SettingUiState>) -> Element<'a,
         )));
 
         if read_only {
-            let mut ro_col = widget::column::new().spacing(8);
+            let mut ro_col = widget::column::with_capacity(eq_spec.band_hz.len()).spacing(8);
             for (i, hz) in eq_spec.band_hz.iter().copied().enumerate() {
                 let raw = values.get(i).copied().unwrap_or(0);
                 let divisor = 10i16.pow(eq_spec.fraction_digits as u32);
@@ -141,7 +142,7 @@ pub fn view<'a>(settings: &'a HashMap<SettingId, SettingUiState>) -> Element<'a,
                 ro_col = ro_col.push(
                     widget::row![
                         widget::text::body(fl!("hz", hz = hz)).width(Length::Fill),
-                        secondary_text(format!("{sign}{int_part}.{frac_part} dB"), 13),
+                        secondary_text(format!("{sign}{int_part}.{frac_part} dB"), 13.0),
                     ]
                     .align_y(Alignment::Center),
                 );
@@ -176,7 +177,7 @@ pub fn view<'a>(settings: &'a HashMap<SettingId, SettingUiState>) -> Element<'a,
                     .on_press(DeviceMessage::CopyToClipboard(json_owned)),
                 ]
                 .align_y(Alignment::Center),
-                secondary_text(export_json, 12),
+                secondary_text(export_json, 12.0),
             ]
             .spacing(8),
         ));

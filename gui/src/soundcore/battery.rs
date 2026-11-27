@@ -1,7 +1,7 @@
 use cosmic::{
     Element, Theme,
     iced::{
-        self, Alignment, Background, Border, Color, Length, Point, Rectangle,
+        self, Alignment, Background, Border, Length, Point, Rectangle,
         alignment::Vertical,
         core::text::Alignment as TextAlignment,
     },

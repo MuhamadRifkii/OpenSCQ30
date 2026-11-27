@@ -46,7 +46,7 @@ pub fn view<'a>(
             ]
             .spacing(12)
             .align_y(Alignment::Center),
-            secondary_text(fl!("dual-connections-description"), 13),
+            secondary_text(fl!("dual-connections-description"), 13.0),
         ]
         .spacing(8),
     ));
@@ -72,7 +72,7 @@ pub fn view<'a>(
 
         if !current_devices.is_empty() {
             col = col.push(
-                widget::container(secondary_text(fl!("current-connected-devices"), 13))
+                widget::container(secondary_text(fl!("current-connected-devices"), 13.0))
                     .padding([4, 4]),
             );
             let mut cur_col = widget::column::with_capacity(current_devices.len() * 2);
@@ -118,8 +118,8 @@ pub fn view<'a>(
             };
             col = col.push(
                 widget::row![
-                    secondary_text(fl!("history"), 13).width(Length::Fill),
-                    widget::button::custom(accent_text(manage_label, 13))
+                    secondary_text(fl!("history"), 13.0).width(Length::Fill),
+                    widget::button::custom(accent_text(manage_label, 13.0))
                         .class(transparent_row_button_style(10.0))
                         .padding([4, 8])
                         .on_press(DeviceMessage::Soundcore(
@@ -146,6 +146,7 @@ pub fn view<'a>(
                             .size(13)
                             .class(theme::Text::Custom(|_| cosmic::iced::widget::text::Style {
                                 color: Some(SOUNDCORE_CORAL),
+                                ..Default::default()
                             })),
                     )
                     .class(transparent_row_button_style(10.0))

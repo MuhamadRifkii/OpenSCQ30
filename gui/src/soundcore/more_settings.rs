@@ -2,8 +2,8 @@ use std::{borrow::Cow, collections::HashMap};
 
 use cosmic::{
     Element,
-    iced::{Alignment, Background, Border, Color, Length},
-    theme, widget,
+    iced::{Alignment, Background, Color, Length},
+    widget,
 };
 use openscq30_lib::settings::{SettingId, Value};
 
@@ -182,7 +182,7 @@ pub fn view<'a>(
                 widget::container(
                     widget::row![
                         widget::text::body(label).size(14).width(Length::Fill),
-                        secondary_text(val, 13),
+                        secondary_text(val, 13.0),
                         copyable.then(|| {
                             widget::button::custom(icons::tinted_secondary(icons::copy(), 16))
                                 .class(crate::theme::transparent_row_button_style(10.0))

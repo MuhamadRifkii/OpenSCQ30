@@ -466,6 +466,7 @@ pub fn nav_row<'a, M: Clone + 'a>(
                     let p = SoundcorePalette::from_theme(theme);
                     iced::widget::text::Style {
                         color: Some(p.text_secondary),
+                        ..Default::default()
                     }
                 })),
         );
@@ -481,6 +482,7 @@ pub fn nav_row<'a, M: Clone + 'a>(
                     let p = SoundcorePalette::from_theme(theme);
                     iced::widget::text::Style {
                         color: Some(p.text_secondary),
+                        ..Default::default()
                     }
                 }))
         }))
@@ -504,6 +506,7 @@ pub fn secondary_text<'a>(content: impl Into<Cow<'a, str>>, size: f32) -> widget
             let p = SoundcorePalette::from_theme(theme);
             iced::widget::text::Style {
                 color: Some(p.text_secondary),
+                ..Default::default()
             }
         }))
 }
@@ -516,6 +519,7 @@ pub fn accent_text<'a>(content: impl Into<Cow<'a, str>>, size: f32) -> widget::T
             let p = SoundcorePalette::from_theme(theme);
             iced::widget::text::Style {
                 color: Some(p.accent),
+                ..Default::default()
             }
         }))
 }

@@ -169,7 +169,7 @@ fn gesture_row<'a>(
         widget::row![
             widget::column![
                 widget::text::body(title).size(14),
-                crate::theme::accent_text(value_label, 12),
+                crate::theme::accent_text(value_label, 12.0),
             ]
             .spacing(3)
             .width(Length::Fill),
@@ -215,7 +215,7 @@ fn sound_mode_cycle_card<'a>(
 
     let mut col = widget::column::with_capacity(items.len() + 2)
         .push(widget::text::title4(fl!("ambient-sound-cycle")).font(cosmic::font::semibold()))
-        .push(secondary_text(fl!("ambient-sound-cycle-description"), 12))
+        .push(secondary_text(fl!("ambient-sound-cycle-description"), 12.0))
         .spacing(10);
 
     for (id, label, checked) in items {
@@ -265,7 +265,7 @@ fn picker_view<'a>(
             return centered_page(
                 widget::column![
                     picker_header(title),
-                    soundcore_card(secondary_text(fl!("not-available"), 13)),
+                    soundcore_card(secondary_text(fl!("not-available"), 13.0)),
                 ]
                 .spacing(14),
             );
@@ -317,7 +317,7 @@ fn picker_view<'a>(
 
         if is_ambient && !cycle.is_empty() {
             let mut nested = widget::column::with_capacity(cycle.len() + 1)
-                .push(secondary_text(fl!("ambient-sound-cycle-description"), 12))
+                .push(secondary_text(fl!("ambient-sound-cycle-description"), 12.0))
                 .spacing(8);
 
             for (cycle_id, cycle_label, checked) in &cycle {
