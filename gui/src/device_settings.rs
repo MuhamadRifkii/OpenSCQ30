@@ -147,6 +147,7 @@ pub(crate) enum SettingVariantUiState {
         value: Option<Cow<'static, str>>,
     },
     Information {
+        value: String,
         translated_value: String,
     },
     ImportString {
@@ -200,9 +201,12 @@ impl From<Setting> for SettingVariantUiState {
                 value,
             },
             Setting::Information {
-                value: _,
+                value,
                 translated_value,
-            } => Self::Information { translated_value },
+            } => Self::Information {
+                value,
+                translated_value,
+            },
             Setting::ImportString {
                 confirmation_message,
             } => Self::ImportString {
@@ -795,7 +799,10 @@ impl DeviceSettingsModel {
                     .into()
                 }
             }
-            SettingVariantUiState::Information { translated_value } => controls::information(
+            SettingVariantUiState::Information {
+                value: _,
+                translated_value,
+            } => controls::information(
                 translated_name,
                 Cow::Borrowed(translated_value),
                 Message::CopyToClipboard(translated_value.to_owned()),

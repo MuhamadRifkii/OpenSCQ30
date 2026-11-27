@@ -151,9 +151,28 @@ pub fn get_preset_eq(
 
 pub fn get_info(settings: &HashMap<SettingId, SettingUiState>, id: SettingId) -> Option<&str> {
     match &settings.get(&id)?.variant_state {
-        SettingVariantUiState::Information { translated_value } => Some(translated_value.as_str()),
+        SettingVariantUiState::Information {
+            value: _,
+            translated_value,
+        } => Some(translated_value.as_str()),
         _ => None,
     }
+}
+
+pub fn get_info_raw(settings: &HashMap<SettingId, SettingUiState>, id: SettingId) -> Option<&str> {
+    match &settings.get(&id)?.variant_state {
+        SettingVariantUiState::Information {
+            value,
+            translated_value: _,
+        } => Some(value.as_str()),
+        _ => None,
+    }
+}
+
+pub fn get_bool_info(settings: &HashMap<SettingId, SettingUiState>, id: SettingId) -> bool {
+    get_info_raw(settings, id)
+        .or_else(|| get_info(settings, id))
+        .is_some_and(is_truthy_info)
 }
 
 pub fn get_import_string(
@@ -174,10 +193,20 @@ pub fn has_setting(settings: &HashMap<SettingId, SettingUiState>, id: SettingId)
 }
 
 pub fn parse_battery_pct(raw: &str) -> Option<u8> {
-    let trimmed = raw.trim();
+    let trimmed = raw
+        .trim()
+        .trim_matches(|c| matches!(c, '\u{2068}' | '\u{2069}'));
     if let Some((num, den)) = trimmed.split_once('/') {
-        let n = num.trim().parse::<u16>().ok()?;
-        let d = den.trim().parse::<u16>().ok()?;
+        let n = num
+            .trim()
+            .trim_matches(|c| matches!(c, '\u{2068}' | '\u{2069}'))
+            .parse::<u16>()
+            .ok()?;
+        let d = den
+            .trim()
+            .trim_matches(|c| matches!(c, '\u{2068}' | '\u{2069}'))
+            .parse::<u16>()
+            .ok()?;
         if d == 0 {
             return None;
         }
@@ -185,8 +214,12 @@ pub fn parse_battery_pct(raw: &str) -> Option<u8> {
     }
     let digits: String = trimmed
         .chars()
+        .skip_while(|c| !c.is_ascii_digit())
         .take_while(|c| c.is_ascii_digit() || *c == '.')
         .collect();
+    if digits.is_empty() {
+        return None;
+    }
     let val = digits.parse::<f32>().ok()?.round() as i32;
     Some(val.clamp(0, 100) as u8)
 }
@@ -226,14 +259,18 @@ pub fn localized_select_value<'a>(
 }
 
 pub fn extract_battery_summary(settings: &HashMap<SettingId, SettingUiState>) -> BatterySummary {
-    let left = get_info(settings, SettingId::BatteryLevelLeft).and_then(parse_battery_pct);
-    let right = get_info(settings, SettingId::BatteryLevelRight).and_then(parse_battery_pct);
-    let case_level = get_info(settings, SettingId::CaseBatteryLevel).and_then(parse_battery_pct);
-    let single = get_info(settings, SettingId::BatteryLevel).and_then(parse_battery_pct);
-    let left_charging = get_info(settings, SettingId::IsChargingLeft).is_some_and(is_truthy_info)
-        || get_info(settings, SettingId::IsCharging).is_some_and(is_truthy_info);
-    let right_charging =
-        get_info(settings, SettingId::IsChargingRight).is_some_and(is_truthy_info);
+    let level_for = |id: SettingId| {
+        get_info_raw(settings, id)
+            .and_then(parse_battery_pct)
+            .or_else(|| get_info(settings, id).and_then(parse_battery_pct))
+    };
+    let left = level_for(SettingId::BatteryLevelLeft);
+    let right = level_for(SettingId::BatteryLevelRight);
+    let case_level = level_for(SettingId::CaseBatteryLevel);
+    let single = level_for(SettingId::BatteryLevel);
+    let left_charging = get_bool_info(settings, SettingId::IsChargingLeft)
+        || get_bool_info(settings, SettingId::IsCharging);
+    let right_charging = get_bool_info(settings, SettingId::IsChargingRight);
 
     BatterySummary {
         left,

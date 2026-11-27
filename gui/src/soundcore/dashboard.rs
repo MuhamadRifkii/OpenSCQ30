@@ -13,8 +13,8 @@ use crate::{
     soundcore::{
         SoundcoreMessage, SoundcoreRoute, artwork, battery,
         helpers::{
-            current_eq_label, extract_battery_summary, get_i32_range, get_info, get_select,
-            get_toggle, has_setting, is_truthy_info, localized_select_value,
+            current_eq_label, extract_battery_summary, get_bool_info, get_i32_range, get_info,
+            get_select, get_toggle, has_setting, localized_select_value,
         },
     },
     theme::{
@@ -214,8 +214,7 @@ fn ambient_sound_card<'a>(
     if current_mode.as_ref() != "Normal"
         && let Some(wind_enabled) = get_toggle(settings, SettingId::WindNoiseSuppression)
     {
-        let wind_detected =
-            get_info(settings, SettingId::WindNoiseDetected).is_some_and(is_truthy_info);
+        let wind_detected = get_bool_info(settings, SettingId::WindNoiseDetected);
         let label_col = widget::column::with_capacity(2)
             .push(widget::text::body(fl!("wind-noise-reduction")).size(14))
             .push_maybe(wind_detected.then(|| {
